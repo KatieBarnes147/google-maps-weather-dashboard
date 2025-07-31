@@ -1,47 +1,48 @@
-# Project #4 – JavaScript and Google Maps API
+# Google Maps Weather Dashboard
 
-This project builds on my Week 3 Weather Dashboard by adding **Google Maps API** integration and connecting it to the **OpenWeather API**. Users can click anywhere on the map to retrieve real-time weather data for that location.
+An interactive weather dashboard that combines the **Google Maps API** and **OpenWeather API**.  
+Users can click anywhere on the map to retrieve real‑time weather details for that location.  
+This project demonstrates **API integration, asynchronous JavaScript, and DOM manipulation**.
 
 ---
 
-## **Project Links**
-
-- **GitLab Repository:**  
-https://gitlab.com/csc6304/2025/summer-2/Katie-Barnes/katie_barnes_week4
-
-- **Hosted Page (GitLab Pages):**  
-https://katie-barnes-week4-245c9d.gitlab.io/
+## **Live Demo**
+**GitHub Pages:** [View Live Project](https://katiebarnes147.github.io/google-maps-weather-dashboard/)  
+*(Replace with your actual GitHub Pages link after enabling Pages in repo settings.)*
 
 ---
 
 ## **Features**
-- Integrated **Google Maps JavaScript API** for interactive map display
-- Click event listener on the map to capture latitude and longitude
-- Asynchronous API calls to **OpenWeather** for real-time weather data
-- Weather information dynamically rendered into the dashboard
-- Responsive layout carried over from Week 3
+- Google Maps JavaScript API for interactive map display
+- OpenWeather API for real‑time weather data
+- Map click event to capture latitude & longitude
+- Asynchronous JavaScript (`async/await`) for API calls
+- Dynamic DOM updates on each map click
+- Responsive layout design (from Week 3 base project)
 
 ---
 
-## **APIs Used**
-- **Google Maps JavaScript API** (for displaying the map and handling map events)
-- **OpenWeather API** (for retrieving real-time weather data based on coordinates)
+## **Technologies Used**
+- HTML5  
+- CSS3 (internal, external, inline)  
+- Vanilla JavaScript  
+- Google Maps JavaScript API  
+- OpenWeather API  
+- GitHub Pages for hosting
 
 ---
 
-## **Setup Notes**
-- I created a new Google Cloud project, enabled the Maps API, and added my API key to the script in `index.html`.
-- I created a free OpenWeather account and used the API key to fetch live weather data.
-- The Maps API key is restricted to my deployed GitLab Pages URL for security.
+## **Security Notes**
+This project uses public API keys for Google Maps and OpenWeather.
+
+- The **Google Maps API key** is **restricted** to the deployed GitHub Pages URL, so it cannot be used outside of this project.  
+- The **OpenWeather API key** is included in the code for demonstration purposes. This key is free-tier and does not provide access to any sensitive information or billing features.
+
+For production-level applications, API keys should be stored securely (e.g., environment variables or server-side proxies).
 
 ---
 
-## **How to Use**
-1. Open the hosted page (link above).
-2. Click on the map anywhere in the world to see current weather for that spot.
-3. Use the input fields if you want to test city or manual latitude/longitude lookups (carried over from Week 3).
-
----
-
-## **Credits**
-Developed by Katie Barnes
+## **Setup**
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/KatieBarnes147/google-maps-weather-dashboard.git
