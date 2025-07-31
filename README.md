@@ -7,9 +7,7 @@ This project demonstrates **API integration, asynchronous JavaScript, and DOM ma
 ---
 
 ## **Live Demo**
-**GitHub Pages:** [View Live Project](https://katiebarnes147.github.io/google-maps-weather-dashboard/)  
-*(Replace with your actual GitHub Pages link after enabling Pages in repo settings.)*
-
+**GitHub Pages:** [View Live Project](https://katiebarnes147.github.io/google-maps-weather-dashboard/)
 ---
 
 ## **Features**
