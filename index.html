@@ -18,6 +18,8 @@
             --brand: #2b6cb0;
             --card: #f9fafb;
             --border: #e5e7eb;
+            --shimmer-from: #e5e7eb;
+            --shimmer-to: #f3f4f6;
         }
 
         body.dark {
@@ -27,6 +29,8 @@
             --brand: #60a5fa;
             --card: #111827;
             --border: #1f2937;
+            --shimmer-from: #1f2937;
+            --shimmer-to: #111827;
         }
 
         * {
@@ -168,6 +172,48 @@
             font-weight: 600;
         }
 
+        /* Forecast */
+        .forecast {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .forecast .day {
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            display: grid;
+            gap: 6px;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        /* Shimmer */
+        .shimmer {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(90deg, var(--shimmer-from), var(--shimmer-to), var(--shimmer-from));
+            background-size: 200% 100%;
+            animation: shimmer 1.3s infinite linear;
+            border-radius: 8px;
+            min-height: 18px;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
         /* Small screens */
         @media (max-width: 600px) {
             .controls {
@@ -175,6 +221,10 @@
             }
 
             .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .forecast {
                 grid-template-columns: 1fr;
             }
         }
@@ -216,13 +266,32 @@
 
         <div id="weather-card" class="card">
             <h3>Weather Details</h3>
-            <div class="grid">
+            <div id="current-grid" class="grid">
                 <div class="item"><span class="key">Latitude</span><span class="val" id="lat-val">42.36</span></div>
                 <div class="item"><span class="key">Longitude</span><span class="val" id="lon-val">-71.06</span></div>
                 <div class="item"><span class="key">Temperature</span><span class="val" id="temp-val">22 °C</span></div>
                 <div class="item"><span class="key">Condition</span><span class="val" id="cond-val">Clear sky</span>
                 </div>
                 <div class="item"><span class="key">Wind Speed</span><span class="val" id="wind-val">10 km/h</span>
+                </div>
+            </div>
+
+            <h3 style="margin-top:16px;">3-Day Forecast</h3>
+            <div id="forecast" class="forecast">
+                <div class="day">
+                    <div class="muted">Day 1</div>
+                    <div class="shimmer"></div>
+                    <div class="shimmer" style="height:12px;"></div>
+                </div>
+                <div class="day">
+                    <div class="muted">Day 2</div>
+                    <div class="shimmer"></div>
+                    <div class="shimmer" style="height:12px;"></div>
+                </div>
+                <div class="day">
+                    <div class="muted">Day 3</div>
+                    <div class="shimmer"></div>
+                    <div class="shimmer" style="height:12px;"></div>
                 </div>
             </div>
         </div>
@@ -240,10 +309,8 @@
             body.classList.toggle('dark');
             const dark = body.classList.contains('dark');
             btn.textContent = dark ? "☀️ Light" : "🌙 Dark";
-            // persist
             try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch { }
         }
-        // Restore theme
         (function () {
             try {
                 const saved = localStorage.getItem('theme');
@@ -257,40 +324,7 @@
         // State
         let lastLat = 42.3601, lastLon = -71.0589;
 
-        // Weather via Open-Meteo
-        async function getWeather(lat, lon) {
-            lastLat = lat; lastLon = lon;
-            const unit = document.getElementById('unit').value; // metric/imperial
-            const useF = unit === 'imperial';
-
-            const url = new URL("https://api.open-meteo.com/v1/forecast");
-            url.searchParams.set("latitude", lat);
-            url.searchParams.set("longitude", lon);
-            url.searchParams.set("current_weather", "true");
-            url.searchParams.set("temperature_unit", useF ? "fahrenheit" : "celsius");
-            url.searchParams.set("wind_speed_unit", useF ? "mph" : "kmh");
-
-            try {
-                const res = await fetch(url.toString());
-                if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
-                const data = await res.json();
-
-                const temp = data?.current_weather?.temperature ?? "?";
-                const wind = data?.current_weather?.windspeed ?? "?";
-                const code = data?.current_weather?.weathercode ?? null;
-
-                // Update card
-                document.getElementById("lat-val").textContent = Number(lat).toFixed(2);
-                document.getElementById("lon-val").textContent = Number(lon).toFixed(2);
-                document.getElementById("temp-val").textContent = `${temp} °${useF ? "F" : "C"}`;
-                document.getElementById("cond-val").textContent = weatherCodeToText(code);
-                document.getElementById("wind-val").textContent = `${wind} ${useF ? "mph" : "km/h"}`;
-            } catch (err) {
-                console.error(err);
-                alert("Could not fetch weather right now.");
-            }
-        }
-
+        // Helpers
         function weatherCodeToText(code) {
             const map = {
                 0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
@@ -301,6 +335,81 @@
                 95: "Thunderstorm", 99: "Thunderstorm with hail"
             };
             return map[code] ?? "Unknown";
+        }
+        function formatDateISO(d) {
+            const dt = new Date(d);
+            return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        // UI: Shimmer while loading
+        function setLoading(isLoading) {
+            const f = document.getElementById('forecast');
+            if (isLoading) {
+                f.innerHTML = `
+          <div class="day"><div class="muted">Day 1</div><div class="shimmer"></div><div class="shimmer" style="height:12px;"></div></div>
+          <div class="day"><div class="muted">Day 2</div><div class="shimmer"></div><div class="shimmer" style="height:12px;"></div></div>
+          <div class="day"><div class="muted">Day 3</div><div class="shimmer"></div><div class="shimmer" style="height:12px;"></div></div>
+        `;
+            }
+        }
+
+        // Weather via Open-Meteo (current + 3-day)
+        async function getWeather(lat, lon) {
+            lastLat = lat; lastLon = lon;
+            document.getElementById("lat-val").textContent = Number(lat).toFixed(2);
+            document.getElementById("lon-val").textContent = Number(lon).toFixed(2);
+
+            const unit = document.getElementById('unit').value; // metric/imperial
+            const useF = unit === 'imperial';
+
+            const url = new URL("https://api.open-meteo.com/v1/forecast");
+            url.searchParams.set("latitude", lat);
+            url.searchParams.set("longitude", lon);
+            url.searchParams.set("current_weather", "true");
+            url.searchParams.set("temperature_unit", useF ? "fahrenheit" : "celsius");
+            url.searchParams.set("wind_speed_unit", useF ? "mph" : "kmh");
+            // 3-day forecast
+            url.searchParams.set("daily", "weathercode,temperature_2m_max,temperature_2m_min");
+            url.searchParams.set("forecast_days", "3");
+            url.searchParams.set("timezone", "auto");
+
+            setLoading(true);
+
+            try {
+                const res = await fetch(url.toString());
+                if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
+                const data = await res.json();
+
+                // Current
+                const temp = data?.current_weather?.temperature ?? "?";
+                const wind = data?.current_weather?.windspeed ?? "?";
+                const code = data?.current_weather?.weathercode ?? null;
+                document.getElementById("temp-val").textContent = `${temp} °${useF ? "F" : "C"}`;
+                document.getElementById("cond-val").textContent = weatherCodeToText(code);
+                document.getElementById("wind-val").textContent = `${wind} ${useF ? "mph" : "km/h"}`;
+
+                // Forecast
+                const days = data?.daily ?? {};
+                const dates = days.time || [];
+                const tmax = days.temperature_2m_max || [];
+                const tmin = days.temperature_2m_min || [];
+                const wcode = days.weathercode || [];
+
+                const f = document.getElementById('forecast');
+                f.innerHTML = dates.map((d, i) => `
+          <div class="day">
+            <div class="muted">${formatDateISO(d)}</div>
+            <div><strong>${weatherCodeToText(wcode[i])}</strong></div>
+            <div class="muted">High / Low</div>
+            <div><strong>${tmax[i]}° / ${tmin[i]}° ${useF ? "F" : "C"}</strong></div>
+          </div>
+        `).join('');
+            } catch (err) {
+                console.error(err);
+                alert("Could not fetch weather right now.");
+            } finally {
+                setLoading(false);
+            }
         }
 
         function getWeatherFromInputs() {
