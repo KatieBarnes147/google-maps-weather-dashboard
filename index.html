@@ -1,45 +1,157 @@
-<script>
-    async function getWeather(lat, lon) {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-        const res = await fetch(url);
-        const data = await res.json();
+<!DOCTYPE html>
+<html lang="en">
 
-        const tempC = data?.current_weather?.temperature ?? "?";
-        const wind = data?.current_weather?.windspeed ?? "?";
-        const code = data?.current_weather?.weathercode ?? null;
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather Dashboard (Keyless)</title>
+    <link rel="stylesheet" href="style.css" />
 
-        document.getElementById("weather-info").innerHTML = `
-      <h3>Weather Details</h3>
-      <p><strong>Latitude:</strong> ${Number(lat).toFixed(2)}</p>
-      <p><strong>Longitude:</strong> ${Number(lon).toFixed(2)}</p>
-      <p><strong>Temperature:</strong> ${tempC} °C</p>
-      <p><strong>Condition:</strong> ${weatherCodeToText(code)}</p>
-      <p><strong>Wind Speed:</strong> ${wind} km/h</p>
-    `;
-    }
+    <!-- Leaflet (OpenStreetMap) - no API key required -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        h1 {
+            color: #2b6cb0;
+            text-align: center;
+            margin-bottom: 12px;
+        }
 
-    function weatherCodeToText(code) {
-        const map = {
-            0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-            45: "Fog", 48: "Depositing rime fog",
-            51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
-            61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
-            71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
-            95: "Thunderstorm", 99: "Thunderstorm with hail"
-        };
-        return map[code] ?? "Unknown";
-    }
+        #map {
+            height: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
 
-    function initMap() {
-        const boston = { lat: 42.3601, lng: -71.0589 };
-        const map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 8, center: boston
+        .inputs {
+            margin: 12px 0;
+        }
+
+        .inputs label {
+            display: inline-block;
+            width: 90px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #2b6cb0;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+
+        #weather-info {
+            margin-top: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Weather Dashboard</h1>
+    <h2>Check Current Weather</h2>
+    <h3>Click anywhere on the map to get weather info for that location</h3>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Manual inputs -->
+    <div class="inputs">
+        <div>
+            <label for="latitude">Latitude:</label>
+            <input type="text" id="latitude" placeholder="Enter latitude" />
+        </div>
+        <br />
+        <div>
+            <label for="longitude">Longitude:</label>
+            <input type="text" id="longitude" placeholder="Enter longitude" />
+        </div>
+        <br />
+        <button onclick="getWeatherFromInputs()">Get Weather</button>
+    </div>
+
+    <!-- Weather output -->
+    <div id="weather-info">
+        <p><strong>Latitude:</strong> 42.36</p>
+        <p><strong>Longitude:</strong> -71.06</p>
+        <p><strong>Temperature:</strong> 22 °C</p>
+        <p><strong>Condition:</strong> Clear sky</p>
+        <p><strong>Wind Speed:</strong> 10 km/h</p>
+    </div>
+
+    <!-- Leaflet JS (no key) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // --- Keyless Weather via Open-Meteo ---
+        async function getWeather(lat, lon) {
+            const url = new URL("https://api.open-meteo.com/v1/forecast");
+            url.searchParams.set("latitude", lat);
+            url.searchParams.set("longitude", lon);
+            url.searchParams.set("current_weather", "true"); // simple current conditions
+
+            try {
+                const res = await fetch(url.toString());
+                if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
+                const data = await res.json();
+
+                const tempC = data?.current_weather?.temperature ?? "?";
+                const wind = data?.current_weather?.windspeed ?? "?";
+                const code = data?.current_weather?.weathercode ?? null;
+
+                document.getElementById("weather-info").innerHTML = `
+          <h3>Weather Details</h3>
+          <p><strong>Latitude:</strong> ${Number(lat).toFixed(2)}</p>
+          <p><strong>Longitude:</strong> ${Number(lon).toFixed(2)}</p>
+          <p><strong>Temperature:</strong> ${tempC} °C</p>
+          <p><strong>Condition:</strong> ${weatherCodeToText(code)}</p>
+          <p><strong>Wind Speed:</strong> ${wind} km/h</p>
+        `;
+            } catch (err) {
+                console.error(err);
+                alert("Could not fetch weather right now.");
+            }
+        }
+
+        function weatherCodeToText(code) {
+            const map = {
+                0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+                45: "Fog", 48: "Depositing rime fog",
+                51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+                61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+                71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+                95: "Thunderstorm", 99: "Thunderstorm with hail"
+            };
+            return map[code] ?? "Unknown";
+        }
+
+        function getWeatherFromInputs() {
+            const lat = parseFloat(document.getElementById("latitude").value);
+            const lon = parseFloat(document.getElementById("longitude").value);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                getWeather(lat, lon);
+                map.setView([lat, lon], 10);
+                marker.setLatLng([lat, lon]);
+            } else {
+                alert("Please enter valid coordinates.");
+            }
+        }
+
+        // --- Leaflet Map (no key) ---
+        const map = L.map('map').setView([42.3601, -71.0589], 9); // Boston default
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const marker = L.marker([42.3601, -71.0589]).addTo(map);
+
+        map.on('click', (e) => {
+            const { lat, lng } = e.latlng;
+            marker.setLatLng([lat, lng]);
+            getWeather(lat, lng);
         });
+    </script>
+</body>
 
-        map.addListener("click", (e) => {
-            const lat = e.latLng.lat();
-            const lon = e.latLng.lng();
-            getWeather(lat, lon);
-        });
-    }
-</script>
+</html>
