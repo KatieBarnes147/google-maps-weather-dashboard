@@ -30,13 +30,10 @@ This project demonstrates **API integration, asynchronous JavaScript, and DOM ma
 
 ---
 
-## **Security Notes**
-This project uses public API keys for Google Maps and OpenWeather.
-
-- The **Google Maps API key** is **restricted** to the deployed GitHub Pages URL, so it cannot be used outside of this project.  
-- The **OpenWeather API key** is included in the code for demonstration purposes. This key is free-tier and does not provide access to any sensitive information or billing features.
-
-For production-level applications, API keys should be stored securely (e.g., environment variables or server-side proxies).
+## Security Notes
+- Weather data now uses Open-Meteo (no API key required).
+- No weather API keys are stored in the repo.
+- Google Maps key remains in the client but is strictly restricted by HTTP referrer to this site’s domain.
 
 ---
 
