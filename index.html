@@ -1,467 +1,65 @@
-<!DOCTYPE html>
-<html lang="en">
+// Weather via Open-Meteo (current + 3-day)
+async function getWeather(lat, lon) {
+lastLat = lat; lastLon = lon;
+document.getElementById("lat-val").textContent = Number(lat).toFixed(2);
+document.getElementById("lon-val").textContent = Number(lon).toFixed(2);
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Weather Dashboard (Keyless)</title>
-    <link rel="stylesheet" href="style.css" />
+const unit = document.getElementById('unit').value; // metric/imperial
+const useF = unit === 'imperial';
 
-    <!-- Leaflet (OpenStreetMap) - no API key required -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <style>
-        :root {
-            --bg: #ffffff;
-            --fg: #1f2937;
-            --muted: #6b7280;
-            --brand: #2b6cb0;
-            --card: #f9fafb;
-            --border: #e5e7eb;
-            --shimmer-from: #e5e7eb;
-            --shimmer-to: #f3f4f6;
-        }
+const url = new URL("https://api.open-meteo.com/v1/forecast");
+url.searchParams.set("latitude", lat);
+url.searchParams.set("longitude", lon);
+url.searchParams.set("current_weather", "true");
+url.searchParams.set("temperature_unit", useF ? "fahrenheit" : "celsius");
+url.searchParams.set("wind_speed_unit", useF ? "mph" : "kmh");
+url.searchParams.set("daily", "weathercode,temperature_2m_max,temperature_2m_min");
+url.searchParams.set("forecast_days", "3");
+url.searchParams.set("timezone", "auto");
 
-        body.dark {
-            --bg: #0f172a;
-            --fg: #e5e7eb;
-            --muted: #94a3b8;
-            --brand: #60a5fa;
-            --card: #111827;
-            --border: #1f2937;
-            --shimmer-from: #1f2937;
-            --shimmer-to: #111827;
-        }
+// --- ensure shimmer is visible for a moment ---
+const MIN_LOAD_MS = 700; // tweak if you want longer/shorter
+const start = performance.now();
+setLoading(true);
 
-        * {
-            box-sizing: border-box;
-        }
+try {
+const res = await fetch(url.toString());
+if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
+const data = await res.json();
 
-        body {
-            margin: 0;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-            background: var(--bg);
-            color: var(--fg);
-        }
+// Guarantee shimmer shows at least MIN_LOAD_MS
+const elapsed = performance.now() - start;
+if (elapsed < MIN_LOAD_MS) { await new Promise(r=> setTimeout(r, MIN_LOAD_MS - elapsed));
+    }
 
-        header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            background: var(--bg);
-            z-index: 10;
-        }
+    // Current
+    const temp = data?.current_weather?.temperature ?? "?";
+    const wind = data?.current_weather?.windspeed ?? "?";
+    const code = data?.current_weather?.weathercode ?? null;
+    document.getElementById("temp-val").textContent = `${temp} °${useF ? "F" : "C"}`;
+    document.getElementById("cond-val").textContent = weatherCodeToText(code);
+    document.getElementById("wind-val").textContent = `${wind} ${useF ? "mph" : "km/h"}`;
 
-        h1 {
-            color: var(--brand);
-            margin: 0;
-            font-size: 1.4rem;
-        }
+    // Forecast
+    const days = data?.daily ?? {};
+    const dates = days.time || [];
+    const tmax = days.temperature_2m_max || [];
+    const tmin = days.temperature_2m_min || [];
+    const wcode = days.weathercode || [];
 
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .toggle {
-            padding: 8px 12px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--fg);
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        .container {
-            max-width: 1000px;
-            margin: 18px auto;
-            padding: 0 16px;
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr auto auto;
-            gap: 12px;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: center;
-        }
-
-        label {
-            min-width: 82px;
-            color: var(--muted);
-        }
-
-        input[type="text"],
-        select {
-            padding: 8px 10px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: var(--bg);
-            color: var(--fg);
-        }
-
-        button {
-            padding: 10px 14px;
-            background: var(--brand);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        #map {
-            height: 420px;
-            width: 100%;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-        }
-
-        /* Card */
-        .card {
-            margin-top: 16px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 1px 0 rgba(0, 0, 0, .04);
-        }
-
-        .card h3 {
-            margin-top: 0;
-            color: var(--fg);
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-        }
-
-        .item {
-            padding: 10px;
-            border: 1px dashed var(--border);
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            gap: 8px;
-        }
-
-        .key {
-            color: var(--muted);
-        }
-
-        .val {
-            font-weight: 600;
-        }
-
-        /* Forecast */
-        .forecast {
-            margin-top: 16px;
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-        }
-
-        .forecast .day {
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: var(--bg);
-            display: grid;
-            gap: 6px;
-        }
-
-        .muted {
-            color: var(--muted);
-        }
-
-        /* Shimmer */
-        .shimmer {
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(90deg, var(--shimmer-from), var(--shimmer-to), var(--shimmer-from));
-            background-size: 200% 100%;
-            animation: shimmer 1.3s infinite linear;
-            border-radius: 8px;
-            min-height: 18px;
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: 200% 0;
-            }
-
-            100% {
-                background-position: -200% 0;
-            }
-        }
-
-        /* Small screens */
-        @media (max-width: 600px) {
-            .controls {
-                grid-template-columns: 1fr;
-            }
-
-            .grid {
-                grid-template-columns: 1fr;
-            }
-
-            .forecast {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-
-<body>
-    <header>
-        <h1>Weather Dashboard</h1>
-        <div class="toolbar">
-            <label for="unit" class="key">Units:</label>
-            <select id="unit" onchange="refetchLast()">
-                <option value="metric" selected>°C / km/h</option>
-                <option value="imperial">°F / mph</option>
-            </select>
-            <button class="toggle" id="themeToggle" onclick="toggleTheme()">🌙 Dark</button>
-        </div>
-    </header>
-
-    <div class="container">
-        <div class="controls">
-            <div class="row">
-                <label for="city">City:</label>
-                <input type="text" id="city" placeholder="e.g., Boston">
-                <button onclick="searchCity()">Search</button>
-            </div>
-            <div class="row">
-                <label for="latitude">Latitude:</label>
-                <input type="text" id="latitude" placeholder="Enter latitude">
-            </div>
-            <div class="row">
-                <label for="longitude">Longitude:</label>
-                <input type="text" id="longitude" placeholder="Enter longitude">
-                <button onclick="getWeatherFromInputs()">Get Weather</button>
-            </div>
-        </div>
-
-        <div id="map"></div>
-
-        <div id="weather-card" class="card">
-            <h3>Weather Details</h3>
-            <div id="current-grid" class="grid">
-                <div class="item"><span class="key">Latitude</span><span class="val" id="lat-val">42.36</span></div>
-                <div class="item"><span class="key">Longitude</span><span class="val" id="lon-val">-71.06</span></div>
-                <div class="item"><span class="key">Temperature</span><span class="val" id="temp-val">22 °C</span></div>
-                <div class="item"><span class="key">Condition</span><span class="val" id="cond-val">Clear sky</span>
-                </div>
-                <div class="item"><span class="key">Wind Speed</span><span class="val" id="wind-val">10 km/h</span>
-                </div>
-            </div>
-
-            <h3 style="margin-top:16px;">3-Day Forecast</h3>
-            <div id="forecast" class="forecast">
-                <div class="day">
-                    <div class="muted">Day 1</div>
-                    <div class="shimmer"></div>
-                    <div class="shimmer" style="height:12px;"></div>
-                </div>
-                <div class="day">
-                    <div class="muted">Day 2</div>
-                    <div class="shimmer"></div>
-                    <div class="shimmer" style="height:12px;"></div>
-                </div>
-                <div class="day">
-                    <div class="muted">Day 3</div>
-                    <div class="shimmer"></div>
-                    <div class="shimmer" style="height:12px;"></div>
-                </div>
-            </div>
-        </div>
+    const f = document.getElementById('forecast');
+    f.innerHTML = dates.map((d, i) => `
+    <div class="day">
+        <div class="muted">${formatDateISO(d)}</div>
+        <div><strong>${weatherCodeToText(wcode[i])}</strong></div>
+        <div class="muted">High / Low</div>
+        <div><strong>${tmax[i]}° / ${tmin[i]}° ${useF ? "F" : "C"}</strong></div>
     </div>
-
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-    <script>
-        // Theme
-        function toggleTheme() {
-            const body = document.body;
-            const btn = document.getElementById('themeToggle');
-            body.classList.toggle('dark');
-            const dark = body.classList.contains('dark');
-            btn.textContent = dark ? "☀️ Light" : "🌙 Dark";
-            try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch { }
-        }
-        (function () {
-            try {
-                const saved = localStorage.getItem('theme');
-                if (saved === 'dark') {
-                    document.body.classList.add('dark');
-                    document.getElementById('themeToggle').textContent = "☀️ Light";
-                }
-            } catch { }
-        })();
-
-        // State
-        let lastLat = 42.3601, lastLon = -71.0589;
-
-        // Helpers
-        function weatherCodeToText(code) {
-            const map = {
-                0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-                45: "Fog", 48: "Depositing rime fog",
-                51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
-                61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
-                71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
-                95: "Thunderstorm", 99: "Thunderstorm with hail"
-            };
-            return map[code] ?? "Unknown";
-        }
-        function formatDateISO(d) {
-            const dt = new Date(d);
-            return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-        }
-
-        // UI: Shimmer while loading
-        function setLoading(isLoading) {
-            const f = document.getElementById('forecast');
-            if (isLoading) {
-                f.innerHTML = `
-          <div class="day"><div class="muted">Day 1</div><div class="shimmer"></div><div class="shimmer" style="height:12px;"></div></div>
-          <div class="day"><div class="muted">Day 2</div><div class="shimmer"></div><div class="shimmer" style="height:12px;"></div></div>
-          <div class="day"><div class="muted">Day 3</div><div class="shimmer"></div><div class="shimmer" style="height:12px;"></div></div>
-        `;
-            }
-        }
-
-        // Weather via Open-Meteo (current + 3-day)
-        async function getWeather(lat, lon) {
-            lastLat = lat; lastLon = lon;
-            document.getElementById("lat-val").textContent = Number(lat).toFixed(2);
-            document.getElementById("lon-val").textContent = Number(lon).toFixed(2);
-
-            const unit = document.getElementById('unit').value; // metric/imperial
-            const useF = unit === 'imperial';
-
-            const url = new URL("https://api.open-meteo.com/v1/forecast");
-            url.searchParams.set("latitude", lat);
-            url.searchParams.set("longitude", lon);
-            url.searchParams.set("current_weather", "true");
-            url.searchParams.set("temperature_unit", useF ? "fahrenheit" : "celsius");
-            url.searchParams.set("wind_speed_unit", useF ? "mph" : "kmh");
-            // 3-day forecast
-            url.searchParams.set("daily", "weathercode,temperature_2m_max,temperature_2m_min");
-            url.searchParams.set("forecast_days", "3");
-            url.searchParams.set("timezone", "auto");
-
-            setLoading(true);
-
-            try {
-                const res = await fetch(url.toString());
-                if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
-                const data = await res.json();
-
-                // Current
-                const temp = data?.current_weather?.temperature ?? "?";
-                const wind = data?.current_weather?.windspeed ?? "?";
-                const code = data?.current_weather?.weathercode ?? null;
-                document.getElementById("temp-val").textContent = `${temp} °${useF ? "F" : "C"}`;
-                document.getElementById("cond-val").textContent = weatherCodeToText(code);
-                document.getElementById("wind-val").textContent = `${wind} ${useF ? "mph" : "km/h"}`;
-
-                // Forecast
-                const days = data?.daily ?? {};
-                const dates = days.time || [];
-                const tmax = days.temperature_2m_max || [];
-                const tmin = days.temperature_2m_min || [];
-                const wcode = days.weathercode || [];
-
-                const f = document.getElementById('forecast');
-                f.innerHTML = dates.map((d, i) => `
-          <div class="day">
-            <div class="muted">${formatDateISO(d)}</div>
-            <div><strong>${weatherCodeToText(wcode[i])}</strong></div>
-            <div class="muted">High / Low</div>
-            <div><strong>${tmax[i]}° / ${tmin[i]}° ${useF ? "F" : "C"}</strong></div>
-          </div>
-        `).join('');
-            } catch (err) {
-                console.error(err);
-                alert("Could not fetch weather right now.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        function getWeatherFromInputs() {
-            const lat = parseFloat(document.getElementById("latitude").value);
-            const lon = parseFloat(document.getElementById("longitude").value);
-            if (!isNaN(lat) && !isNaN(lon)) {
-                map.setView([lat, lon], 10);
-                marker.setLatLng([lat, lon]);
-                getWeather(lat, lon);
-            } else {
-                alert("Please enter valid coordinates.");
-            }
-        }
-
-        async function searchCity() {
-            const q = document.getElementById("city").value?.trim();
-            if (!q) return alert("Enter a city name.");
-            try {
-                const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=${encodeURIComponent(q)}`;
-                const res = await fetch(url, { headers: {} });
-                if (!res.ok) throw new Error("Geocoding failed");
-                const results = await res.json();
-                if (!results.length) return alert("City not found. Try a more specific query.");
-                const { lat, lon } = results[0];
-                map.setView([+lat, +lon], 11);
-                marker.setLatLng([+lat, +lon]);
-                getWeather(+lat, +lon);
-            } catch (e) {
-                console.error(e);
-                alert("Could not find that city.");
-            }
-        }
-
-        function refetchLast() { getWeather(lastLat, lastLon); }
-
-        // Leaflet Map (no key)
-        const map = L.map('map').setView([lastLat, lastLon], 9); // Boston default
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-        const marker = L.marker([lastLat, lastLon]).addTo(map);
-
-        map.on('click', (e) => {
-            const { lat, lng } = e.latlng;
-            marker.setLatLng([lat, lng]);
-            getWeather(lat, lng);
-        });
-
-        // Initial fetch
-        getWeather(lastLat, lastLon);
-    </script>
-</body>
-
-</html>
+    `).join('');
+    } catch (err) {
+    console.error(err);
+    alert("Could not fetch weather right now.");
+    } finally {
+    setLoading(false);
+    }
+    }
