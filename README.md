@@ -1,43 +1,54 @@
-# Google Maps Weather Dashboard
+# Google Maps Weather Dashboard (Keyless)
 
-An interactive weather dashboard that combines the **Google Maps API** and **OpenWeather API**.  
-Users can click anywhere on the map to retrieve real‑time weather details for that location.  
-This project demonstrates **API integration, asynchronous JavaScript, and DOM manipulation**.
+An interactive weather dashboard that shows current conditions for any point you click on the map.  
+This version is **keyless**: it uses **Leaflet + OpenStreetMap** for maps and **Open-Meteo** for weather data (no API keys).
 
 ---
 
-## **Live Demo**
+## 🚀 Live Demo
 **GitHub Pages:** [View Live Project](https://katiebarnes147.github.io/google-maps-weather-dashboard/)
+
 ---
 
-## **Features**
-- Google Maps JavaScript API for interactive map display
-- OpenWeather API for real‑time weather data
-- Map click event to capture latitude & longitude
+## ✨ Features
+- Interactive map (Leaflet + OpenStreetMap) — no API key required
+- Click anywhere to fetch current weather for that location
 - Asynchronous JavaScript (`async/await`) for API calls
 - Dynamic DOM updates on each map click
-- Responsive layout design (from Week 3 base project)
+- Basic coordinate inputs (lat/lon) for manual lookups
+- Responsive layout based on Week 3 project
 
 ---
 
-## **Technologies Used**
+## 🧰 Technologies Used
 - HTML5  
-- CSS3 (internal, external, inline)  
+- CSS3  
 - Vanilla JavaScript  
-- Google Maps JavaScript API  
-- OpenWeather API  
+- **Leaflet** (OpenStreetMap tiles)  
+- **Open-Meteo** Weather API (no key)  
 - GitHub Pages for hosting
 
 ---
 
-## Security Notes
-- Weather data now uses Open-Meteo (no API key required).
-- No weather API keys are stored in the repo.
-- Google Maps key remains in the client but is strictly restricted by HTTP referrer to this site’s domain.
+## 🔐 Security Notes
+- Weather data now uses **Open-Meteo** — **no API key required**.
+- No weather API keys are stored in this repository or exposed in the client.
+- (If you prefer Google Maps, use a **referrer-restricted** key and understand it will be visible client-side.)
 
 ---
 
-## **Setup**
+## 🛠️ Setup
 1. Clone this repository:
    ```bash
    git clone https://github.com/KatieBarnes147/google-maps-weather-dashboard.git
+   cd google-maps-weather-dashboard
+   ```
+2. Open `index.html` in your browser (or use a simple local server).
+3. Click on the map to load weather for the selected location.
+
+---
+
+## 🧭 Notes
+- If you need forecast or additional variables, extend the Open-Meteo URL with `daily=` or `hourly=` params.
+- If you switch back to **Google Maps**, keep your API key **HTTP-referrer restricted** to your Pages domain.
+
