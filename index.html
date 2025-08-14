@@ -11,16 +11,80 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
-        h1 {
-            color: #2b6cb0;
-            text-align: center;
-            margin-bottom: 12px;
+        :root {
+            --bg: #ffffff;
+            --fg: #1f2937;
+            --muted: #6b7280;
+            --brand: #2b6cb0;
+            --card: #f9fafb;
+            --border: #e5e7eb;
         }
 
-        #map {
-            height: 400px;
-            width: 100%;
-            margin-bottom: 20px;
+        body.dark {
+            --bg: #0f172a;
+            --fg: #e5e7eb;
+            --muted: #94a3b8;
+            --brand: #60a5fa;
+            --card: #111827;
+            --border: #1f2937;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+            background: var(--bg);
+            color: var(--fg);
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 10;
+        }
+
+        h1 {
+            color: var(--brand);
+            margin: 0;
+            font-size: 1.4rem;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toggle {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--fg);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 18px auto;
+            padding: 0 16px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
         }
 
         .row {
@@ -28,70 +92,140 @@
             flex-wrap: wrap;
             gap: 12px;
             align-items: center;
-            margin: 12px 0;
         }
 
-        .row label {
-            min-width: 90px;
+        label {
+            min-width: 82px;
+            color: var(--muted);
         }
 
-        input[type="text"] {
-            padding: 6px 8px;
+        input[type="text"],
+        select {
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--fg);
         }
 
-        select,
         button {
-            padding: 8px 12px;
-        }
-
-        button {
-            background: #2b6cb0;
+            padding: 10px 14px;
+            background: var(--brand);
             color: #fff;
             border: none;
+            border-radius: 10px;
             cursor: pointer;
         }
 
-        #weather-info {
-            margin-top: 12px;
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #map {
+            height: 420px;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        /* Card */
+        .card {
+            margin-top: 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, .04);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: var(--fg);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .item {
+            padding: 10px;
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .key {
+            color: var(--muted);
+        }
+
+        .val {
+            font-weight: 600;
+        }
+
+        /* Small screens */
+        @media (max-width: 600px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 
 <body>
-    <h1>Weather Dashboard</h1>
-    <h2>Click the map or search a city</h2>
+    <header>
+        <h1>Weather Dashboard</h1>
+        <div class="toolbar">
+            <label for="unit" class="key">Units:</label>
+            <select id="unit" onchange="refetchLast()">
+                <option value="metric" selected>°C / km/h</option>
+                <option value="imperial">°F / mph</option>
+            </select>
+            <button class="toggle" id="themeToggle" onclick="toggleTheme()">🌙 Dark</button>
+        </div>
+    </header>
 
-    <!-- Controls -->
-    <div class="row">
-        <label for="city">City:</label>
-        <input type="text" id="city" placeholder="e.g., Boston">
-        <button onclick="searchCity()">Search</button>
+    <div class="container">
+        <div class="controls">
+            <div class="row">
+                <label for="city">City:</label>
+                <input type="text" id="city" placeholder="e.g., Boston">
+                <button onclick="searchCity()">Search</button>
+            </div>
+            <div class="row">
+                <label for="latitude">Latitude:</label>
+                <input type="text" id="latitude" placeholder="Enter latitude">
+            </div>
+            <div class="row">
+                <label for="longitude">Longitude:</label>
+                <input type="text" id="longitude" placeholder="Enter longitude">
+                <button onclick="getWeatherFromInputs()">Get Weather</button>
+            </div>
+        </div>
 
-        <label for="unit">Units:</label>
-        <select id="unit" onchange="refetchLast()">
-            <option value="metric" selected>°C / km/h</option>
-            <option value="imperial">°F / mph</option>
-        </select>
-    </div>
+        <div id="map"></div>
 
-    <div class="row">
-        <label for="latitude">Latitude:</label>
-        <input type="text" id="latitude" placeholder="Enter latitude">
-        <label for="longitude">Longitude:</label>
-        <input type="text" id="longitude" placeholder="Enter longitude">
-        <button onclick="getWeatherFromInputs()">Get Weather</button>
-    </div>
-
-    <!-- Map -->
-    <div id="map"></div>
-
-    <!-- Weather output -->
-    <div id="weather-info">
-        <p><strong>Latitude:</strong> 42.36</p>
-        <p><strong>Longitude:</strong> -71.06</p>
-        <p><strong>Temperature:</strong> 22 °C</p>
-        <p><strong>Condition:</strong> Clear sky</p>
-        <p><strong>Wind Speed:</strong> 10 km/h</p>
+        <div id="weather-card" class="card">
+            <h3>Weather Details</h3>
+            <div class="grid">
+                <div class="item"><span class="key">Latitude</span><span class="val" id="lat-val">42.36</span></div>
+                <div class="item"><span class="key">Longitude</span><span class="val" id="lon-val">-71.06</span></div>
+                <div class="item"><span class="key">Temperature</span><span class="val" id="temp-val">22 °C</span></div>
+                <div class="item"><span class="key">Condition</span><span class="val" id="cond-val">Clear sky</span>
+                </div>
+                <div class="item"><span class="key">Wind Speed</span><span class="val" id="wind-val">10 km/h</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Leaflet JS -->
@@ -99,14 +233,34 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-        // Keep track of last lat/lon so changing units re-fetches for the same spot
+        // Theme
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.getElementById('themeToggle');
+            body.classList.toggle('dark');
+            const dark = body.classList.contains('dark');
+            btn.textContent = dark ? "☀️ Light" : "🌙 Dark";
+            // persist
+            try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch { }
+        }
+        // Restore theme
+        (function () {
+            try {
+                const saved = localStorage.getItem('theme');
+                if (saved === 'dark') {
+                    document.body.classList.add('dark');
+                    document.getElementById('themeToggle').textContent = "☀️ Light";
+                }
+            } catch { }
+        })();
+
+        // State
         let lastLat = 42.3601, lastLon = -71.0589;
 
-        // --- Keyless Weather via Open-Meteo ---
+        // Weather via Open-Meteo
         async function getWeather(lat, lon) {
             lastLat = lat; lastLon = lon;
-
-            const unit = document.getElementById('unit').value; // "metric" or "imperial"
+            const unit = document.getElementById('unit').value; // metric/imperial
             const useF = unit === 'imperial';
 
             const url = new URL("https://api.open-meteo.com/v1/forecast");
@@ -125,14 +279,12 @@
                 const wind = data?.current_weather?.windspeed ?? "?";
                 const code = data?.current_weather?.weathercode ?? null;
 
-                document.getElementById("weather-info").innerHTML = `
-          <h3>Weather Details</h3>
-          <p><strong>Latitude:</strong> ${Number(lat).toFixed(2)}</p>
-          <p><strong>Longitude:</strong> ${Number(lon).toFixed(2)}</p>
-          <p><strong>Temperature:</strong> ${temp} °${useF ? "F" : "C"}</p>
-          <p><strong>Condition:</strong> ${weatherCodeToText(code)}</p>
-          <p><strong>Wind Speed:</strong> ${wind} ${useF ? "mph" : "km/h"}</p>
-        `;
+                // Update card
+                document.getElementById("lat-val").textContent = Number(lat).toFixed(2);
+                document.getElementById("lon-val").textContent = Number(lon).toFixed(2);
+                document.getElementById("temp-val").textContent = `${temp} °${useF ? "F" : "C"}`;
+                document.getElementById("cond-val").textContent = weatherCodeToText(code);
+                document.getElementById("wind-val").textContent = `${wind} ${useF ? "mph" : "km/h"}`;
             } catch (err) {
                 console.error(err);
                 alert("Could not fetch weather right now.");
@@ -167,13 +319,12 @@
             const q = document.getElementById("city").value?.trim();
             if (!q) return alert("Enter a city name.");
             try {
-                // Nominatim (OpenStreetMap) geocoding — no API key
-                const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`;
-                const res = await fetch(url, { headers: { /* Referer will be set automatically */ } });
+                const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=${encodeURIComponent(q)}`;
+                const res = await fetch(url, { headers: {} });
                 if (!res.ok) throw new Error("Geocoding failed");
                 const results = await res.json();
                 if (!results.length) return alert("City not found. Try a more specific query.");
-                const { lat, lon, display_name } = results[0];
+                const { lat, lon } = results[0];
                 map.setView([+lat, +lon], 11);
                 marker.setLatLng([+lat, +lon]);
                 getWeather(+lat, +lon);
@@ -183,17 +334,14 @@
             }
         }
 
-        function refetchLast() {
-            getWeather(lastLat, lastLon);
-        }
+        function refetchLast() { getWeather(lastLat, lastLon); }
 
-        // --- Leaflet Map (no key) ---
+        // Leaflet Map (no key)
         const map = L.map('map').setView([lastLat, lastLon], 9); // Boston default
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
-
         const marker = L.marker([lastLat, lastLon]).addTo(map);
 
         map.on('click', (e) => {
