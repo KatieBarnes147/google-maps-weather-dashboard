@@ -23,17 +23,28 @@
             margin-bottom: 20px;
         }
 
-        .inputs {
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
             margin: 12px 0;
         }
 
-        .inputs label {
-            display: inline-block;
-            width: 90px;
+        .row label {
+            min-width: 90px;
+        }
+
+        input[type="text"] {
+            padding: 6px 8px;
+        }
+
+        select,
+        button {
+            padding: 8px 12px;
         }
 
         button {
-            padding: 10px 20px;
             background: #2b6cb0;
             color: #fff;
             border: none;
@@ -48,26 +59,31 @@
 
 <body>
     <h1>Weather Dashboard</h1>
-    <h2>Check Current Weather</h2>
-    <h3>Click anywhere on the map to get weather info for that location</h3>
+    <h2>Click the map or search a city</h2>
+
+    <!-- Controls -->
+    <div class="row">
+        <label for="city">City:</label>
+        <input type="text" id="city" placeholder="e.g., Boston">
+        <button onclick="searchCity()">Search</button>
+
+        <label for="unit">Units:</label>
+        <select id="unit" onchange="refetchLast()">
+            <option value="metric" selected>°C / km/h</option>
+            <option value="imperial">°F / mph</option>
+        </select>
+    </div>
+
+    <div class="row">
+        <label for="latitude">Latitude:</label>
+        <input type="text" id="latitude" placeholder="Enter latitude">
+        <label for="longitude">Longitude:</label>
+        <input type="text" id="longitude" placeholder="Enter longitude">
+        <button onclick="getWeatherFromInputs()">Get Weather</button>
+    </div>
 
     <!-- Map -->
     <div id="map"></div>
-
-    <!-- Manual inputs -->
-    <div class="inputs">
-        <div>
-            <label for="latitude">Latitude:</label>
-            <input type="text" id="latitude" placeholder="Enter latitude" />
-        </div>
-        <br />
-        <div>
-            <label for="longitude">Longitude:</label>
-            <input type="text" id="longitude" placeholder="Enter longitude" />
-        </div>
-        <br />
-        <button onclick="getWeatherFromInputs()">Get Weather</button>
-    </div>
 
     <!-- Weather output -->
     <div id="weather-info">
@@ -78,24 +94,34 @@
         <p><strong>Wind Speed:</strong> 10 km/h</p>
     </div>
 
-    <!-- Leaflet JS (no key) -->
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
+        // Keep track of last lat/lon so changing units re-fetches for the same spot
+        let lastLat = 42.3601, lastLon = -71.0589;
+
         // --- Keyless Weather via Open-Meteo ---
         async function getWeather(lat, lon) {
+            lastLat = lat; lastLon = lon;
+
+            const unit = document.getElementById('unit').value; // "metric" or "imperial"
+            const useF = unit === 'imperial';
+
             const url = new URL("https://api.open-meteo.com/v1/forecast");
             url.searchParams.set("latitude", lat);
             url.searchParams.set("longitude", lon);
-            url.searchParams.set("current_weather", "true"); // simple current conditions
+            url.searchParams.set("current_weather", "true");
+            url.searchParams.set("temperature_unit", useF ? "fahrenheit" : "celsius");
+            url.searchParams.set("wind_speed_unit", useF ? "mph" : "kmh");
 
             try {
                 const res = await fetch(url.toString());
                 if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
                 const data = await res.json();
 
-                const tempC = data?.current_weather?.temperature ?? "?";
+                const temp = data?.current_weather?.temperature ?? "?";
                 const wind = data?.current_weather?.windspeed ?? "?";
                 const code = data?.current_weather?.weathercode ?? null;
 
@@ -103,9 +129,9 @@
           <h3>Weather Details</h3>
           <p><strong>Latitude:</strong> ${Number(lat).toFixed(2)}</p>
           <p><strong>Longitude:</strong> ${Number(lon).toFixed(2)}</p>
-          <p><strong>Temperature:</strong> ${tempC} °C</p>
+          <p><strong>Temperature:</strong> ${temp} °${useF ? "F" : "C"}</p>
           <p><strong>Condition:</strong> ${weatherCodeToText(code)}</p>
-          <p><strong>Wind Speed:</strong> ${wind} km/h</p>
+          <p><strong>Wind Speed:</strong> ${wind} ${useF ? "mph" : "km/h"}</p>
         `;
             } catch (err) {
                 console.error(err);
@@ -129,28 +155,55 @@
             const lat = parseFloat(document.getElementById("latitude").value);
             const lon = parseFloat(document.getElementById("longitude").value);
             if (!isNaN(lat) && !isNaN(lon)) {
-                getWeather(lat, lon);
                 map.setView([lat, lon], 10);
                 marker.setLatLng([lat, lon]);
+                getWeather(lat, lon);
             } else {
                 alert("Please enter valid coordinates.");
             }
         }
 
+        async function searchCity() {
+            const q = document.getElementById("city").value?.trim();
+            if (!q) return alert("Enter a city name.");
+            try {
+                // Nominatim (OpenStreetMap) geocoding — no API key
+                const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`;
+                const res = await fetch(url, { headers: { /* Referer will be set automatically */ } });
+                if (!res.ok) throw new Error("Geocoding failed");
+                const results = await res.json();
+                if (!results.length) return alert("City not found. Try a more specific query.");
+                const { lat, lon, display_name } = results[0];
+                map.setView([+lat, +lon], 11);
+                marker.setLatLng([+lat, +lon]);
+                getWeather(+lat, +lon);
+            } catch (e) {
+                console.error(e);
+                alert("Could not find that city.");
+            }
+        }
+
+        function refetchLast() {
+            getWeather(lastLat, lastLon);
+        }
+
         // --- Leaflet Map (no key) ---
-        const map = L.map('map').setView([42.3601, -71.0589], 9); // Boston default
+        const map = L.map('map').setView([lastLat, lastLon], 9); // Boston default
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        const marker = L.marker([42.3601, -71.0589]).addTo(map);
+        const marker = L.marker([lastLat, lastLon]).addTo(map);
 
         map.on('click', (e) => {
             const { lat, lng } = e.latlng;
             marker.setLatLng([lat, lng]);
             getWeather(lat, lng);
         });
+
+        // Initial fetch
+        getWeather(lastLat, lastLon);
     </script>
 </body>
 
